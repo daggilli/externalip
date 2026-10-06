@@ -8,6 +8,8 @@
 # pylint: disable=unused-import
 import json
 import redis
+import getopt
+import sys
 
 import requests
 
@@ -56,9 +58,24 @@ def notifychange(ip: str) -> None:
 
 
 def main() -> None:
+    verbose = False
+
+    argv: list[str] = sys.argv[1:]
+    opts = "v"
+    longopts = "verbose"
+
+    args, vals = getopt.getopt(argv, opts, longopts)
+    for curarg, curval in args:
+        if curarg in ("-v", "--verbose"):
+            verbose = True
+
     ip = externalip()
-    if ip != "TIMEOUT" and ipchanged(ip):
-        notifychange(ip)
+    if verbose:
+        print(f"IP: {ip}")
+        return
+    else:
+        if ip != "TIMEOUT" and ipchanged(ip):
+            notifychange(ip)
 
 
 if __name__ == "__main__":
