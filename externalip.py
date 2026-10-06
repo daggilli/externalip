@@ -1,5 +1,5 @@
 #!/usr/bin/env python3.12
-# Find external IP address and notify via Pushover ifi it has changed
+# Find external IP address and notify via Pushover if it has changed
 
 
 # pylint: disable = missing-module-docstring
@@ -7,15 +7,16 @@
 # pylint: disable=missing-class-docstring
 # pylint: disable=unused-import
 import json
-import redis
-import getopt
 import sys
+import getopt
 
+import redis
 import requests
 
 IPKEY = "externalip"
 IPLOOKUP_URL = "https://api.ipify.org?format=json"
 EXPRESS_URL = "http://localhost:9238/notify"
+GELOCATE_URL = "https://api.ip2location.io/?ip="
 
 
 def externalip() -> str:
@@ -57,25 +58,50 @@ def notifychange(ip: str) -> None:
     send_message(message)
 
 
+def geolocate(ip: str) -> dict | str:
+    try:
+        iploc: requests.Response = requests.get(f"{GELOCATE_URL}{ip}", timeout=10)
+    except requests.exceptions.Timeout:
+        return "TIMEOUT"
+    iplocstr = iploc.text
+    iplocdict = json.loads(iplocstr)
+    return iplocdict
+
+
 def main() -> None:
     verbose = False
+    locate = False
 
     argv: list[str] = sys.argv[1:]
-    opts = "v"
-    longopts = "verbose"
+    opts = "vl"
+    longopts = ["verbose", "locate"]
 
-    args, vals = getopt.getopt(argv, opts, longopts)
-    for curarg, curval in args:
+    args, _ = getopt.getopt(argv, opts, longopts)
+    for curarg, _ in args:
         if curarg in ("-v", "--verbose"):
             verbose = True
+        if curarg in ("-l", "--locate"):
+            locate = True
 
     ip = externalip()
-    if verbose:
-        print(f"IP: {ip}")
+    if ip == "TIMEOUT":
+        print("IP LOOKUP TIMED OUT")
         return
-    else:
-        if ip != "TIMEOUT" and ipchanged(ip):
-            notifychange(ip)
+
+    ipstr = ip
+    if locate:
+        loc = geolocate(ip)
+        if isinstance(loc, dict):
+            cou = loc["country_code"]
+            city = loc["city_name"]
+            ipstr += f" ({cou}/{city})"
+
+    if verbose:
+        print(f"IP: {ipstr}")
+        return
+
+    if ipchanged(ip):
+        notifychange(ipstr)
 
 
 if __name__ == "__main__":
