@@ -71,10 +71,11 @@ def geolocate(ip: str) -> dict | str:
 def main() -> None:
     verbose = False
     locate = False
+    force = False
 
     argv: list[str] = sys.argv[1:]
-    opts = "vl"
-    longopts = ["verbose", "locate"]
+    opts = "vlf"
+    longopts = ["verbose", "locate", "force"]
 
     args, _ = getopt.getopt(argv, opts, longopts)
     for curarg, _ in args:
@@ -82,6 +83,8 @@ def main() -> None:
             verbose = True
         if curarg in ("-l", "--locate"):
             locate = True
+        if curarg in ("-f", "--force"):
+            force = True
 
     ip = externalip()
     if ip == "TIMEOUT":
@@ -98,9 +101,10 @@ def main() -> None:
 
     if verbose:
         print(f"IP: {ipstr}")
-        return
+        if not force:
+            return
 
-    if ipchanged(ip):
+    if ipchanged(ip) or force:
         notifychange(ipstr)
 
 
